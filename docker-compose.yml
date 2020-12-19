@@ -1,0 +1,80 @@
+version: '3.0'
+services:
+  mysql-solocal:
+    container_name: mysql-solocal
+    image: mysql:5.7
+    environment:
+      MYSQL_ROOT_PASSWORD: solocal
+      MYSQL_DATABASE: solocal  # Database will be created on start
+      MYSQL_USER: solocal    # Password for MySQL User. 
+      MYSQL_PASSWORD: solocal
+    healthcheck:
+      test: "/usr/bin/mysql --user=root --password=solocal --execute \"SHOW DATABASES;\""
+      interval: 2s
+      timeout: 20s
+      retries: 10
+    volumes:
+    - ./db:/var/lib/mysql
+    networks:
+      - solocal
+      
+  phpmyadmin-solocal:
+    container_name: phpmyadmin-solocal
+    image: phpmyadmin/phpmyadmin
+    links:
+      - mysql-solocal:mysql-solocal
+    ports:
+      - "41:80"
+    networks:
+      - solocal
+    restart: always
+    environment:
+      PMA_HOST: mysql-solocal
+      
+  symfony-solocal:
+    container_name: symfony-solocal
+    # php7.3
+    image: whatwedo/symfony4:v2.0
+    # php7.2
+    # image: whatwedo/symfony4
+    environment:
+        DATABASE_URL: mysql://solocal:solocal@mysql-solocal:3306/solocal?serverVersion=5.7
+    volumes:
+    - ./back:/var/www
+    
+    #command: ["symfony console doctrine:migrations:migrate -n"]
+    # Commande du batch
+    #command: wait-for-it app-php72-db:3306 -t 30 -- /bin/oft db:migrate -n
+    #command: sh -c "composer install --no-interaction"
+    #command: php bin/console --no-interaction doctrine:migrations:migrate -n
+    #command: sh -c "symfony console doctrine:migrations:migrate -n"
+    ports:
+      - "40:80"
+    links:
+      - mysql-solocal
+    depends_on:
+      - mysql-solocal
+    tty: true
+    networks:
+      - solocal
+      
+  composer-solocal:
+    image: composer
+    command: ["composer", "install"]
+    volumes:
+      - ./back:/app
+      
+  node-solocal:
+    build:
+      context: .
+    ports:
+      - 4680:3000
+    volumes:
+      - ./front:/app
+      - /app/node_modules      
+    command: npm start      
+      
+volumes:
+  data:
+networks:
+  solocal:
